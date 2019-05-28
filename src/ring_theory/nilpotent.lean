@@ -71,10 +71,10 @@ lemma mul_one (n : ℕ) : exp_mul n 1 = n :=
 by { cases n; refl }
 
 lemma mul_comm (n m : ℕ) : exp_mul n m = exp_mul m n :=
- by { cases n; cases m; dsimp[exp_mul]; try {refl}, rw [add_comm n m] }
+by { cases n; cases m; dsimp[exp_mul]; try {refl}, rw [add_comm n m] }
 
 lemma mul_assoc (n m p : ℕ) :
- exp_mul (exp_mul n m) p = exp_mul n (exp_mul m p) :=
+  exp_mul (exp_mul n m) p = exp_mul n (exp_mul m p) :=
 by { cases n; cases m; cases p; dsimp[exp_mul]; try {refl},
      repeat{ rw [add_assoc] } }
 
@@ -92,12 +92,11 @@ variable [ring A]
 
 def as_nilpotent (a : A) := {n : ℕ // a ^ n = 0}
 
-def as_nilpotent_congr {a b : A} (e : a = b)
- (ha : as_nilpotent a) : as_nilpotent b :=
-  ⟨ha.val, e ▸ ha.property⟩
+def as_nilpotent_congr {a b : A} (e : a = b) (ha : as_nilpotent a) :
+  as_nilpotent b :=
+⟨ha.val, e ▸ ha.property⟩
 
-lemma as_nilpotent_congr_exp {a b : A} (e : a = b)
- (ha : as_nilpotent a) :
+lemma as_nilpotent_congr_exp {a b : A} (e : a = b) (ha : as_nilpotent a) :
   (as_nilpotent_congr e ha).1 = ha.1 := rfl
 
 inductive is_nilpotent (a : A) : Prop
@@ -152,7 +151,7 @@ lemma as_nilpotent_add_comm_exp {a b : A}
 (as_nilpotent_add_comm hab ha hb).1 = exp_mul ha.1 hb.1 := rfl
 
 lemma is_nilpotent_add_comm {a b : A} :
- commute a b → is_nilpotent a → is_nilpotent b → is_nilpotent (a + b) :=
+  commute a b → is_nilpotent a → is_nilpotent b → is_nilpotent (a + b) :=
 λ hab ⟨ha⟩ ⟨hb⟩, ⟨as_nilpotent_add_comm hab ha hb⟩
 
 /-- Product of an arbitrary element and a commuting nilpotent element is nilpotent -/
@@ -164,7 +163,7 @@ lemma as_nilpotent_smul_comm_exp {a b : A} (hab : commute a b) (hb : as_nilpoten
   (as_nilpotent_smul_comm hab hb).1 = hb.1 := rfl
 
 lemma is_nilpotent_smul_comm {a b : A} :
- commute a b → is_nilpotent b → is_nilpotent (a * b) :=
+  commute a b → is_nilpotent b → is_nilpotent (a * b) :=
 λ hab ⟨hb⟩, ⟨as_nilpotent_smul_comm hab hb⟩
 
 /-- Difference of two commuting nilpotent elements is nilpotent -/
@@ -191,6 +190,70 @@ lemma is_nilpotent_chain {a : A} {n : ℕ} :
   is_nilpotent (a ^ n) → is_nilpotent a :=
 λ ⟨ha⟩, ⟨as_nilpotent_chain ha⟩
 
+/-- If a is nilpotent, then 1 - a is a unit -/
+lemma one_sub_as_nilpotent_aux {a : A} {n : ℕ} (ha : a ^ n = 0) :
+  ((1 - a) * (geom_series a n) = 1) ∧
+  ((geom_series a n) * (1 - a) = 1) :=
+begin
+  have h₀ : (geom_series a n) * (1 - a) = 1 :=
+    by { rw [geom_sum_mul_neg, ha, sub_zero] },
+  have h₁ : (finset.range n).sum (λ i, a ^ i) * (1 - a) = 1 := h₀,
+  have h₂ : (λ i, a ^ i * (1 - a)) = (λ i, (1 - a) * a ^ i) :=
+    funext (λ i, ((commute.one a).sub (commute.refl a)).pow_left i),
+  rw [finset.sum_mul, h₂, ← finset.mul_sum] at h₁,
+  exact ⟨h₁,h₀⟩
+end
+
+def one_sub_as_nilpotent_unit {a : A} (ha : as_nilpotent a) : units A :=
+{ val := 1 - a, inv := (geom_series a ha.1),
+  val_inv := (one_sub_as_nilpotent_aux ha.2).left,
+  inv_val := (one_sub_as_nilpotent_aux ha.2).right }
+
+lemma one_sub_as_nilpotent_coe {a : A} (ha : as_nilpotent a) :
+  ((one_sub_as_nilpotent_unit ha) : A) = 1 - a := rfl
+
+lemma one_sub_as_nilpotent_inv {a : A} (ha : as_nilpotent a) :
+  (one_sub_as_nilpotent_unit ha).inv = (geom_series a ha.1) := rfl
+
+/-- If u is a unit and a is commuting nilpotent then u + a is a unit -/
+lemma unit_add_nilpotent_comm_aux {u v a : A} {n : ℕ}
+  (huv : u * v = 1) (hvu : v * u = 1) (ha : a ^ n = 0)
+  (hua : commute u a) :
+  ((u + a) * (v * (geom_series (- v * a) n)) = 1) ∧
+  ((v * (geom_series (- v * a) n) * (u + a)) = 1) :=
+begin
+  let x := (geom_series (- v * a) n),
+  change (u + a) * (v * x) = 1 ∧ (v * x) * (u + a) = 1,
+  have hva : commute v a := calc
+    v * a = v * a * (u * v) : by { rw [huv, mul_one] }
+    ... = a * v : by { rw [← mul_assoc, mul_assoc v, ← hua.eq,
+                           ← mul_assoc, hvu, one_mul] },
+  have hva_pow : (- v * a) ^ n = 0 :=
+    by { rw [mul_pow_comm hva.neg_left, ha, mul_zero] },
+  have h : ((1 - -v * a) * x = 1) ∧ (x * (1 - -v * a) = 1) :=
+    one_sub_as_nilpotent_aux hva_pow,
+  rw [← neg_mul_eq_neg_mul, sub_neg_eq_add] at h,
+  split,
+  { rw [← mul_assoc, add_mul, huv, ← hva.eq, h.left] },
+  { exact calc
+     v * x * (u + a) = (v * x * (u + a)) * (v * u) : by { rw [hvu, mul_one] }
+     ... = v * x * ((u + a) * v) * u : by { repeat {rw [mul_assoc]} }
+     ... = v * (x * (1 + v * a)) * u :
+       by { rw[add_mul, huv, hva.eq], repeat {rw [mul_assoc]} }
+     ... = 1 : by { rw [h.right, mul_one, hvu] } }
+end
+
+def unit_add_nilpotent_comm (u : units A)
+  {a : A} (ha : as_nilpotent a) (hua : commute (u : A) a) : units A :=
+have h : _ := (unit_add_nilpotent_comm_aux u.val_inv u.inv_val ha.2 hua),
+{ val := u + a,
+  inv := u.inv * (finset.range ha.1).sum (λ i, (- u.inv * a) ^ i),
+  val_inv := h.left, inv_val := h.right }
+
+lemma unit_add_nilpotent_comm_coe (u : units A)
+  {a : A} (ha : as_nilpotent a) (hua : commute (u : A) a) :
+((unit_add_nilpotent_comm u ha hua) : A) = u + a := rfl
+
 end ring_theory
 
 namespace ring_theory
@@ -201,17 +264,16 @@ namespace ring_theory
 variable [comm_ring A]
 
 /-- Sum of nilpotent elements is nilpotent -/
-lemma nilpotent_add_aux {a b : A} {n m : ℕ}
-(ha : a ^ n = 0) (hb : b ^ m = 0) : (a + b) ^ (exp_mul n m) = 0 :=
+lemma nilpotent_add_aux {a b : A} {n m : ℕ} (ha : a ^ n = 0) (hb : b ^ m = 0) :
+  (a + b) ^ (exp_mul n m) = 0 :=
 nilpotent_add_aux_comm (all_commute a b) ha hb
 
-def as_nilpotent_add {a b : A}
- (ha : as_nilpotent a) (hb : as_nilpotent b) : as_nilpotent (a + b) :=
+def as_nilpotent_add {a b : A} (ha : as_nilpotent a) (hb : as_nilpotent b) :
+  as_nilpotent (a + b) :=
 as_nilpotent_add_comm (all_commute a b) ha hb
 
-lemma as_nilpotent_add_exp {a b : A}
-(ha : as_nilpotent a) (hb : as_nilpotent b) :
-(as_nilpotent_add ha hb).1 = exp_mul ha.1 hb.1 := rfl
+lemma as_nilpotent_add_exp {a b : A} (ha : as_nilpotent a) (hb : as_nilpotent b) :
+  (as_nilpotent_add ha hb).1 = exp_mul ha.1 hb.1 := rfl
 
 lemma is_nilpotent_add {a b : A} :
   is_nilpotent a → is_nilpotent b → is_nilpotent (a + b) :=
@@ -305,35 +367,34 @@ instance : add_comm_monoid (w_nilradical A) :=
 { zero := has_zero.zero _,
   add := (+),
   zero_add := λ a,
-   by { ext, rw [add_coe, zero_coe, zero_add],
-            rw [add_exp, zero_exp, exp_mul.one_mul] },
+    by { ext, rw [add_coe, zero_coe, zero_add],
+              rw [add_exp, zero_exp, exp_mul.one_mul] },
   add_zero := λ a,
-   by { ext, rw [add_coe, zero_coe, add_zero],
-            rw [add_exp, zero_exp, exp_mul.mul_one] },
+    by { ext, rw [add_coe, zero_coe, add_zero],
+              rw [add_exp, zero_exp, exp_mul.mul_one] },
   add_comm := λ a b,
-   by { ext, rw [add_coe, add_coe, add_comm],
-            rw [add_exp, add_exp, exp_mul.mul_comm] },
+    by { ext, rw [add_coe, add_coe, add_comm],
+              rw [add_exp, add_exp, exp_mul.mul_comm] },
   add_assoc := λ a b c,
-   by { ext,
-       { repeat { rw [add_coe] }, rw [add_assoc] },
-       { repeat { rw [add_exp] }, rw [exp_mul.mul_assoc] }
-      } }
+    by { ext,
+         { repeat { rw [add_coe] }, rw [add_assoc] },
+         { repeat { rw [add_exp] }, rw [exp_mul.mul_assoc] } } }
 
 lemma smul_zero (a : A) : a • (0 : w_nilradical A) = 0 :=
- by { ext, rw [smul_coe, zero_coe, mul_zero], rw [smul_exp] }
+by { ext, rw [smul_coe, zero_coe, mul_zero], rw [smul_exp] }
 
 lemma smul_add (a : A) (b c : w_nilradical A) : a • (b + c) = (a • b) + (a • c) :=
- by { ext,
-      rw [smul_coe, add_coe, add_coe, smul_coe, smul_coe, mul_add],
-      rw [smul_exp, add_exp, add_exp, smul_exp, smul_exp] }
+by { ext,
+     rw [smul_coe, add_coe, add_coe, smul_coe, smul_coe, mul_add],
+     rw [smul_exp, add_exp, add_exp, smul_exp, smul_exp] }
 
 lemma one_smul (b : w_nilradical A) : (1 : A) • b = b :=
- by { ext, rw [smul_coe, one_mul], rw [smul_exp] }
+by { ext, rw [smul_coe, one_mul], rw [smul_exp] }
 
 lemma mul_smul (a b : A) (c : w_nilradical A) : (a * b) • c = a • (b • c) :=
- by { ext,
-      rw [smul_coe, smul_coe, smul_coe, mul_assoc],
-      rw [smul_exp, smul_exp, smul_exp] }
+by { ext,
+     rw [smul_coe, smul_coe, smul_coe, mul_assoc],
+     rw [smul_exp, smul_exp, smul_exp] }
 
 /- Neither zero_smul nor add_smul are satisfied in this context -/
 
@@ -352,7 +413,7 @@ def nilradical : ideal A :=
   smul := λ (a : A) {b : A} (hb : is_nilpotent b), is_nilpotent_smul a hb }
 
 lemma mem_nilradical (x : A) : x ∈ nilradical A ↔ is_nilpotent x :=
-by {refl}
+by { refl }
 
 /-- The quotient by the ideal of nilpotent elements -/
 def reduced_quotient := (nilradical A).quotient
@@ -374,11 +435,11 @@ lemma mk_eq_zero_iff {x : A} : mk x = 0 ↔ (is_nilpotent x) :=
 /-- The reduced quotient is reduced -/
 lemma is_reduced : is_reduced (reduced_quotient A) :=
 begin
- rintros ⟨x0⟩ ⟨n,e0⟩,
- apply mk_eq_zero_iff.mpr,
- have := (is_semiring_hom.map_pow mk x0 n).trans e0,
- have := mk_eq_zero_iff.mp this,
- exact is_nilpotent_chain this
+  rintros ⟨x0⟩ ⟨n,e0⟩,
+  apply mk_eq_zero_iff.mpr,
+  have := (is_semiring_hom.map_pow mk x0 n).trans e0,
+  have := mk_eq_zero_iff.mp this,
+  exact is_nilpotent_chain this
 end
 
 end reduced_quotient
@@ -391,21 +452,12 @@ lemma unit_not_nilpotent (a b : A) :
 λ hab hz ⟨⟨m,ha⟩⟩,
   hz (by { rw [← _root_.one_pow m, ← hab, mul_pow, ha, zero_mul] })
 
-/-- If a is nilpotent, then 1 - a is a unit -/
-lemma one_sub_nilpotent_aux {a : A} {n : ℕ} (ha : a ^ n = 0) :
-  (1 - a) * (geom_series a n) = 1 :=
-by rw [mul_comm, geom_sum_mul_neg, ha, sub_zero]
-
 /-- If u is a unit and a is nilpotent then u + a is a unit -/
 lemma unit_add_nilpotent_aux {u v a : A} {n : ℕ}
   (hu : u * v = 1) (ha : a ^ n = 0) :
   (u + a) * (v * (geom_series (- v * a) n)) = 1 :=
-begin
-  rw [← mul_assoc, add_mul, hu, mul_comm a v,
-      ← sub_neg_eq_add 1 (v * a), neg_mul_eq_neg_mul],
-  let h₀ : (- v * a) ^ n = 0 := by { rw [mul_pow, ha, mul_zero] },
-  exact one_sub_nilpotent_aux h₀
-end
+(unit_add_nilpotent_comm_aux hu ((mul_comm v u).trans hu) ha
+ (all_commute u a)).left
 
 def unit_add_nilpotent (u : units A) (a : w_nilradical A) : units A :=
 { val := u + a,
