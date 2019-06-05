@@ -66,6 +66,30 @@ by { dsimp [commute], rw [one_mul, mul_one] }
 
 theorem commute.one_left (a : M) : commute 1 a := (commute.one a).symm
 
+section
+
+open is_monoid_hom (map_mul map_one)
+
+theorem commute.inv_hom {G : Type*} [group G] {f : G → M} [is_monoid_hom f]
+  {a : M} {b : G} (h : commute a (f b)) : commute a (f b⁻¹) :=
+calc a * (f b⁻¹) = (f b⁻¹) * (f b * a) * (f b⁻¹) : by rw [← mul_assoc, ← map_mul f, mul_left_inv, map_one f, one_mul]
+             ... = (f b⁻¹) * a                   : by rw [h.eq.symm, mul_assoc, mul_assoc a, ← map_mul f, mul_right_inv, map_one f, mul_one]
+
+theorem commute.inv_hom_left {G : Type*} [group G] {f : G → M} [is_monoid_hom f]
+  {a : G} {b : M} (h : commute (f a) b) : commute (f a⁻¹) b :=
+h.symm.inv_hom.symm
+
+theorem commute.inv_hom_inv_hom {G₁ : Type*} [group G₁] {f₁ : G₁ → M} [is_monoid_hom f₁]
+  {G₂ : Type*} [group G₂] {f₂ : G₂ → M} [is_monoid_hom f₂]
+  {a : G₁} {b : G₂} (h : commute (f₁ a) (f₂ b)) : commute (f₁ a⁻¹) (f₂ b⁻¹) :=
+h.inv_hom.inv_hom_left
+
+end
+
+theorem commute.inv_units {a : M} {b : units M} (h : commute a ↑b) : commute a ↑b⁻¹ := h.inv_hom
+
+theorem commute.inv_units_left {a : units M} {b : M} (h : commute ↑a b) : commute ↑a⁻¹ b := h.inv_hom_left
+
 theorem commute.pow {a b : M} (hab : commute a b) : ∀ (n : ℕ), commute a (b ^ n)
 | 0 := by { rw [pow_zero], exact commute.one a }
 | (n + 1) := by { rw [pow_succ], exact hab.mul (commute.pow n) }
@@ -109,11 +133,7 @@ section group
 variables {G : Type*} [group G]
 
 theorem commute.inv {a b : G} (hab : commute a b) : commute a b⁻¹ :=
-begin
-  dsimp [commute] at *,
-  symmetry, apply eq_mul_inv_iff_mul_eq.mpr,
-  rw [mul_assoc, hab, ← mul_assoc, inv_mul_self, one_mul]
-end
+@commute.inv_hom _ _ _ _ id _ a b hab
 
 theorem commute.inv_left {a b : G} (hab : commute a b) : commute a⁻¹ b :=
 hab.symm.inv.symm
