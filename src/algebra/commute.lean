@@ -16,7 +16,7 @@ so for rewriting we need syntax like `rw [(hb.pow_left 5).eq]`
 rather than just `rw [hb.pow_left 5]`.
 -/
 
-import algebra.group_power
+import data.set.basic algebra.group_power
   group_theory.submonoid group_theory.subgroup
   ring_theory.subring
 
@@ -117,6 +117,20 @@ instance centralizer.is_submonoid (a : M) : is_submonoid (centralizer a) :=
 instance set_centralizer.is_submonoid (S : set M) : is_submonoid (set_centralizer S) :=
 { one_mem := λ a h, commute.one a,
   mul_mem := λ x y hx hy a h, (hx a h).mul (hy a h) }
+
+/-- Given a homomogrphism from a group `G` to a monoid `M`, and an element `a ∈ M`,
+the preimage of the centralizer of `a` under `f` is a subgroup of `G`. -/
+instance centralizer.preimage_is_subgroup
+  (a : M) {G : Type*} [group G] (f : G → M) [is_monoid_hom f]
+  : is_subgroup (f⁻¹' (centralizer a)) :=
+{ inv_mem := λ b (hb : commute a (f b)), hb.inv_hom }
+
+/-- Given a homomogrphism from a group `G` to a monoid `M`, and a subset `S ⊆ M`,
+the preimage of the centralizer of `S` under `f` is a subgroup of `G`. -/
+instance set_centralizer.preimage_is_subgroup (S : set M)
+  {G : Type*} [group G] (f : G → M) [is_monoid_hom f]
+  : is_subgroup (f⁻¹' (set_centralizer S)) :=
+{ inv_mem := λ b (hb : ∀ a ∈ S, commute a (f b)) a ha, (hb a ha).inv_hom }
 
 end monoid
 
